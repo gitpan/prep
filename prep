@@ -1,0 +1,154 @@
+#!/usr/local/bin/perl
+
+=head1 NAME
+
+prep - a perl version of grep
+
+=head1 SYNOPSIS
+
+prep [ -chilnrv ] <perl regex> [ <path> ]
+
+=head1 DESCRIPTION
+
+prep is a perl version of the grep UNIX utility. The main differences anre the
+use of perlish regexes, and the -r option for recursive matches on directories.
+
+=head1 OPTIONS
+
+=over 4
+
+=item -c
+
+Print only a count of the lines that contain the pattern.
+
+=item -h
+
+Prevents the name of the file containing the matching line from being
+appended to that line. Used when searching multiple files.
+
+=item -i
+
+Ignore upper/lower case distinction during comparisons.
+
+=item -l
+
+Print only the names of files with matching lines, separated by NEWLINE
+characters. Does not repeat the names of files when the pattern is found
+more than once.
+
+=item  -n 
+
+Precede each line by its line number in the file (first line is 1).
+
+=item -r
+
+Match recursively.
+
+=item -v
+
+Print all lines except those that contain the pattern.
+
+=back
+
+=head1 SEE ALSO
+
+perlre(1).
+
+=head1 TODO
+
+The -b option.
+
+=head1 AUTHOR
+
+Ave Wrigley (awrigley@cpan.org).
+
+=cut
+
+$VERSION = "1.00";
+
+use strict;
+use IO::File;
+use File::Find;
+use Getopt::Long;
+use Pod::Usage;
+
+use vars qw(
+    $opt_c
+    $opt_h
+    $opt_i
+    $opt_l
+    $opt_n
+    $opt_r
+    $opt_v
+    $regex
+    %files
+    $count
+);
+
+Getopt::Long::Configure ("bundling");
+GetOptions( qw( c h i l n r v ) ) or pod2usage;
+$regex = shift or pod2usage;
+$regex = quotemeta( $regex );
+$regex = "(?i)$regex" if $opt_i;
+
+sub domatch( $;$ )
+{
+    my $fh = shift;
+    my $name = shift;
+
+    warn "$name is a directory\n" and return if -d $name;
+
+    while( <$fh> )
+    {
+        if ( $opt_v ? $_ !~ /$regex/o : /$regex/o )
+        {
+            if ( $opt_l || $opt_c )
+            {
+                $files{$name}++;
+            }
+            else
+            {
+                print "$name:" unless $opt_h;
+                print "$.:" if $opt_n;
+                print;
+            }
+        }
+    }
+}
+
+if ( @ARGV )
+{
+    if ( $opt_r )
+    {
+        find(
+            sub {
+                return unless -T;
+                my $fh = IO::File->new( $_ );
+                domatch $fh, $File::Find::name;
+            },
+            @ARGV
+        );
+    }
+    else
+    {
+        for ( @ARGV )
+        {
+            my $fh = IO::File->new( $_ );
+            domatch $fh, $_;
+        }
+    }
+    print
+        map { 
+            $opt_c ? 
+                ( %files > 1 ? "$_:$files{$_}\n" : "$files{$_}\n" ) : 
+                "$_\n" 
+            }
+        keys %files 
+    if $opt_l || $opt_c;
+}
+else
+{
+    $opt_h = 1;
+    my $fh = IO::File->new( fileno( STDIN ) );
+    domatch $fh;
+}
