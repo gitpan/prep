@@ -10,7 +10,7 @@ prep [ -chilnrv ] <perl regex> [ <path> ]
 
 =head1 DESCRIPTION
 
-prep is a perl version of the grep UNIX utility. The main differences anre the
+prep is a perl version of the grep UNIX utility. The main differences are the
 use of perlish regexes, and the -r option for recursive matches on directories.
 
 =head1 OPTIONS
@@ -36,6 +36,10 @@ Print only the names of files with matching lines, separated by NEWLINE
 characters. Does not repeat the names of files when the pattern is found
 more than once.
 
+=item -m
+
+Prints the man page.
+
 =item  -n 
 
 Precede each line by its line number in the file (first line is 1).
@@ -44,15 +48,59 @@ Precede each line by its line number in the file (first line is 1).
 
 Match recursively.
 
+=item -u
+
+Prints helpful information about usage.
+
 =item -v
 
 Print all lines except those that contain the pattern.
 
 =back
 
+=head1 RC FILE
+
+prep supports the use of a .preprc file, which should be in your $HOME
+directory. If this file exists, prep will assume each line in this file is a
+default option. Options on the command line override these defaults. For
+example, if your .preprc file contains:
+
+    -r
+
+then prep will act recursively, unless invoked with:
+
+    prep --nor
+
+prep assumes options are bundled (see L<Getopt::Long::Configure>), but all
+options are negatable, using the extended double dash option format (see
+L<Getopt::Long>).
+
 =head1 SEE ALSO
 
 perlre(1).
+
+=head1 SCRIPT CATEGORIES
+
+Search
+
+=head1 PREREQUISITES
+
+L<Getopt::Long>
+L<File::Find>
+L<Pod::Usage>
+
+=head1 README
+
+prep - a perl version of grep
+
+prep is a perl version of the grep UNIX utility. The main differences are the
+use of perlish regexes, and the -r option for recursive matches on directories.
+
+=head1 OSNAMES
+
+Should run under any OS that perl runs on, but currently tested on:
+
+solaris
 
 =head1 TODO
 
@@ -64,7 +112,7 @@ Ave Wrigley (awrigley@cpan.org).
 
 =cut
 
-$VERSION = "1.00";
+$VERSION = "1.03";
 
 use strict;
 use IO::File;
@@ -77,18 +125,31 @@ use vars qw(
     $opt_h
     $opt_i
     $opt_l
+    $opt_m
     $opt_n
     $opt_r
+    $opt_u
     $opt_v
     $regex
     %files
     $count
 );
 
+my $rcfile = "$ENV{HOME}/.preprc";
+if ( -r $rcfile )
+{
+    open( FH, $rcfile );
+    my @default_opts = <FH>;
+    chomp( @default_opts );
+    unshift( @ARGV, @default_opts );
+    close( FH );
+}
 Getopt::Long::Configure ("bundling");
-GetOptions( qw( c h i l n r v ) ) or pod2usage;
+GetOptions( qw( c! h! i! l! m! n! r! u! v! ) ) or pod2usage;
+pod2usage( -verbose => 1 )  if ( $opt_u );
+pod2usage( -verbose => 2 )  if ( $opt_m );
 $regex = shift or pod2usage;
-$regex = quotemeta( $regex );
+$regex = qr{$regex};
 $regex = "(?i)$regex" if $opt_i;
 
 sub domatch( $;$ )

@@ -1,5 +1,5 @@
 MANIFEST
 Makefile.PL
 prep
-samples/FOO
-samples/foo
+samples/foo1
+samples/foo2
